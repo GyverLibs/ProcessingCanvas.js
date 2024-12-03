@@ -31,7 +31,7 @@ export default class ProcessingCanvas extends ActionCanvas {
     // PUBLIC
     constructor(canvas, ratio = window.devicePixelRatio, mapxy = null) {
         super(canvas);
-        
+
         this.#ratio = ratio;
         this.#map = mapxy ? mapxy : (x, y) => {
             x *= this.#ratio;
@@ -92,7 +92,7 @@ export default class ProcessingCanvas extends ActionCanvas {
     }
     pop() {
         this.cx.restore();
-        this.#cfg = this.#stack.pop();
+        if (this.#stack.length) this.#cfg = this.#stack.pop();
     }
     background(color, g, b, a) {
         let t = this.cx.fillStyle;
