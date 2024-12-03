@@ -1,0 +1,14 @@
+{
+  "name": "@alexgyver/processing-canvas",
+  "version": "1.0.0",
+  "description": "Processing API for HTML canvas",
+  "main": "./ProcessingCanvas.js",
+  "module": "./ProcessingCanvas.js",
+  "types": "./ProcessingCanvas.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GyverLibs/ProcessingCanvas.js.git"
+  },
+  "author": "AlexGyver <alex@alexgyver.ru>",
+  "license": "MIT"
+}
