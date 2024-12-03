@@ -1,4 +1,6 @@
-export default class ProcessingCanvas {
+import ActionCanvas from "@alexgyver/action-canvas";
+
+export default class ProcessingCanvas extends ActionCanvas {
     // STATIC
     static radians(deg) {
         return deg * 0.0174532925;
@@ -28,20 +30,16 @@ export default class ProcessingCanvas {
 
     // PUBLIC
     constructor(canvas, ratio = window.devicePixelRatio, mapxy = null) {
-        /** @type {Canvas} */
-        this.cv = canvas;
-        /** @type {CanvasRenderingContext2D} */
-        this.cx = canvas.getContext("2d");
-
-        this._ratio = ratio;
-        this._map = mapxy ? mapxy : (x, y) => {
-            x *= this._ratio;
-            y *= this._ratio;
+        super(canvas);
+        
+        this.#ratio = ratio;
+        this.#map = mapxy ? mapxy : (x, y) => {
+            x *= this.#ratio;
+            y *= this.#ratio;
             if (x < 0) x = this.cv.width - x;
             if (y < 0) y = this.cv.height - y;
             return [x, y];
         }
-
         this.setDefaults();
     }
 
@@ -49,13 +47,14 @@ export default class ProcessingCanvas {
         let cx = this.cx;
         cx.fillStyle = 'white';
         cx.strokeStyle = 'black';
-        cx.lineWidth = this._ratio;
+        cx.lineWidth = this.#ratio;
         cx.lineCap = "round";
         cx.lineJoin = "miter";
         cx.textBaseline = 'alphabetic';
         cx.textAlign = 'left';
-        cx.font = Math.round(20 * this._ratio) + 'px Arial';
+        cx.font = Math.round(20 * this.#ratio) + 'px Arial';
         this.#cfg = this.#defaults();
+        this.#stack = [];
     }
 
     size(width, height) {
@@ -72,7 +71,7 @@ export default class ProcessingCanvas {
         return Math.round(this.cv.height / window.devicePixelRatio);
     }
     scale() {
-        return this._ratio;
+        return this.#ratio;
     }
     clear() {
         this.cx.clearRect(0, 0, this.cv.width, this.cv.height);
@@ -89,9 +88,11 @@ export default class ProcessingCanvas {
     }
     push() {
         this.cx.save();
+        this.#stack.push(this.#cfg);
     }
     pop() {
         this.cx.restore();
+        this.#cfg = this.#stack.pop();
     }
     background(color, g, b, a) {
         let t = this.cx.fillStyle;
@@ -108,7 +109,7 @@ export default class ProcessingCanvas {
         this.cx.strokeStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
     }
     strokeWeight(px) {
-        this.cx.lineWidth = px * this._ratio;
+        this.cx.lineWidth = px * this.#ratio;
     }
     strokeJoin(join) {
         this.cx.lineJoin = (() => {
@@ -143,7 +144,7 @@ export default class ProcessingCanvas {
         this.cx.font = this.cx.font.split('px ')[0] + 'px ' + font;
     }
     textSize(px) {
-        this.cx.font = Math.round(px * this._ratio) + 'px ' + this.cx.font.split('px ')[1];
+        this.cx.font = Math.round(px * this.#ratio) + 'px ' + this.cx.font.split('px ')[1];
     }
     textAlign(hor, vert) {
         this.cx.textAlign = (() => {
@@ -166,24 +167,24 @@ export default class ProcessingCanvas {
         })();
     }
     text(text, x, y) {
-        if (this.#cfg.fillF) this.cx.fillText(text, ...this._map(x, y));
-        if (this.#cfg.strokeF) this.cx.strokeText(text, ...this._map(x, y));
+        if (this.#cfg.fillF) this.cx.fillText(text, ...this.#map(x, y));
+        if (this.#cfg.strokeF) this.cx.strokeText(text, ...this.#map(x, y));
     }
     point(x, y) {
         this.cx.beginPath();
-        this.cx.fillRect(...this._map(x, y), this._ratio, this._ratio);
+        this.cx.fillRect(...this.#map(x, y), this.#ratio, this.#ratio);
     }
     line(x0, y0, x1, y1) {
         if (!this.#cfg.strokeF) return;
         this.cx.beginPath();
-        this.cx.moveTo(...this._map(x0, y0));
-        this.cx.lineTo(...this._map(x1, y1));
+        this.cx.moveTo(...this.#map(x0, y0));
+        this.cx.lineTo(...this.#map(x1, y1));
         this.cx.stroke();
     }
     rect(x0, y0, x1, y1, ...args) {
         this.cx.beginPath();
-        let xy = this._map(x0, y0);
-        let wh = [x1 * this._ratio, y1 * this._ratio];
+        let xy = this.#map(x0, y0);
+        let wh = [x1 * this.#ratio, y1 * this.#ratio];
         switch (this.#cfg.rectMode) {
             case 'CENTER':
                 xy = [xy[0] - wh[0] / 2, xy[1] - wh[1] / 2];
@@ -193,14 +194,14 @@ export default class ProcessingCanvas {
                 wh = [wh[0] * 2, wh[1] * 2];
                 break;
             case 'CORNERS':
-                let xy2 = this._map(x1, y1);
+                let xy2 = this.#map(x1, y1);
                 wh = [xy2[0] - xy[0], xy2[1] - xy[1]];
                 break;
             // case 'CORNER': break;
         }
         if (args[0]) {
-            let r = [args[0] * this._ratio];
-            if (!isNaN(args[3])) r = r.concat([args[1] * this._ratio, args[2] * this._ratio, args[3] * this._ratio]);
+            let r = [args[0] * this.#ratio];
+            if (!isNaN(args[3])) r = r.concat([args[1] * this.#ratio, args[2] * this.#ratio, args[3] * this.#ratio]);
             this.cx.roundRect(xy[0], xy[1], wh[0], wh[1], r);
             this.#apply();
         } else {
@@ -213,7 +214,7 @@ export default class ProcessingCanvas {
     }
     arc(x, y, w, h, start, stop) {
         this.cx.beginPath();
-        this.cx.ellipse(...this._map(x, y), w * this._ratio, h * this._ratio, 0, start, stop);
+        this.cx.ellipse(...this.#map(x, y), w * this.#ratio, h * this.#ratio, 0, start, stop);
         this.#apply();
     }
     ellipse(x, y, w, h) {
@@ -225,8 +226,8 @@ export default class ProcessingCanvas {
     bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
         if (!this.#cfg.strokeF) return;
         this.cx.beginPath();
-        this.cx.moveTo(...this._map(x1, y1));
-        this.cx.bezierCurveTo(...this._map(x2, y2), ...this._map(x3, y3), ...this._map(x4, y4));
+        this.cx.moveTo(...this.#map(x1, y1));
+        this.cx.bezierCurveTo(...this.#map(x2, y2), ...this.#map(x3, y3), ...this.#map(x4, y4));
         this.cx.stroke();
     }
     endShape(close) {
@@ -236,9 +237,9 @@ export default class ProcessingCanvas {
     vertex(x, y) {
         if (this.#cfg.shapeF) {
             this.#cfg.shapeF = 0;
-            this.cx.moveTo(...this._map(x, y));
+            this.cx.moveTo(...this.#map(x, y));
         } else {
-            this.cx.lineTo(...this._map(x, y));
+            this.cx.lineTo(...this.#map(x, y));
         }
     }
     triangle(x0, y0, x1, y1, x2, y2) {
@@ -249,9 +250,9 @@ export default class ProcessingCanvas {
     }
     polygon(...args) {
         this.cx.beginPath();
-        this.cx.moveTo(...this._map(args[0], args[1]));
+        this.cx.moveTo(...this.#map(args[0], args[1]));
         for (let i = 2; i < args.length; i += 2) {
-            this.cx.lineTo(...this._map(args[i], args[i + 1]));
+            this.cx.lineTo(...this.#map(args[i], args[i + 1]));
         }
         this.cx.closePath();
         this.#apply();
@@ -259,24 +260,24 @@ export default class ProcessingCanvas {
     bezierVertex(xa1, ya1, xa2, ya2, xe, ye) {
         if (this.#cfg.shapeF) {
             this.#cfg.shapeF = 0;
-            this.cx.moveTo(...this._map(xe, ye));
+            this.cx.moveTo(...this.#map(xe, ye));
         }
-        this.cx.bezierCurveTo(...this._map(xa1, ya1), ...this._map(xa2, ya2), ...this._map(xe, ye));
+        this.cx.bezierCurveTo(...this.#map(xa1, ya1), ...this.#map(xa2, ya2), ...this.#map(xe, ye));
     }
     rotate(rad) {
         this.cx.rotate(rad);
     }
     translate(x, y) {
-        this.cx.translate(...this._map(x, y));
+        this.cx.translate(...this.#map(x, y));
     }
     image(img, x, y, w, h) {
-        let xy = this._map(x, y);
+        let xy = this.#map(x, y);
 
-        if (isNaN(w)) w = img.width * this._ratio;
-        else w *= this._ratio;
+        if (isNaN(w)) w = img.width * this.#ratio;
+        else w *= this.#ratio;
 
         if (isNaN(h)) h = w * img.height / img.width;
-        else h *= this._ratio;
+        else h *= this.#ratio;
 
         switch (this.#cfg.imgMode) {
             case 'CORNER':
@@ -302,11 +303,14 @@ export default class ProcessingCanvas {
     // PRIVATE
 
     #cfg = this.#defaults();
+    #ratio;
+    #map;
+    #stack = [];
 
     #drawEllipse(x, y, w, h) {
         this.cx.beginPath();
-        let xy = this._map(x, y);
-        let wh = [w * this._ratio / 2, h * this._ratio / 2];
+        let xy = this.#map(x, y);
+        let wh = [w * this.#ratio / 2, h * this.#ratio / 2];
         switch (this.#cfg.elMode) {
             // case 'CENTER': break;
             case 'RADIUS':
@@ -316,7 +320,7 @@ export default class ProcessingCanvas {
                 xy = [xy[0] + wh[0], xy[1] + wh[1]];
                 break;
             case 'CORNERS':
-                let xy2 = this._map(w, h);
+                let xy2 = this.#map(w, h);
                 wh = [(xy2[0] - xy[0]) / 2, (xy2[1] - xy[1]) / 2];
                 xy = [xy[0] + wh[0], xy[1] + wh[1]];
                 break;
@@ -338,7 +342,6 @@ export default class ProcessingCanvas {
             elMode: 'CENTER',
             rectMode: 'CORNER',
             imgMode: 'CORNER',
-            scale: 1,
         }
     }
 }
