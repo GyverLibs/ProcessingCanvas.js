@@ -1,7 +1,7 @@
 import ActionCanvas from "@alexgyver/action-canvas";
 
 export default class ProcessingCanvas extends ActionCanvas {
-    // STATIC
+    //#region static
     static radians(deg) {
         return deg * 0.0174532925;
     }
@@ -28,7 +28,7 @@ export default class ProcessingCanvas extends ActionCanvas {
         }
     }
 
-    // PUBLIC
+    //#region public
     constructor(canvas, ratio = window.devicePixelRatio, mapxy = null) {
         super(canvas);
 
@@ -57,13 +57,7 @@ export default class ProcessingCanvas extends ActionCanvas {
         this.#stack = [];
     }
 
-    size(width, height) {
-        let params = {};
-        ['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'textBaseline', 'textAlign', 'font'].forEach(p => params[p] = this.cx[p]);
-        this.cv.width = width;
-        this.cv.height = height;
-        for (let p in params) this.cx[p] = params[p];
-    }
+    // #region getter
     width() {
         return Math.round(this.cv.width / window.devicePixelRatio);
     }
@@ -73,18 +67,23 @@ export default class ProcessingCanvas extends ActionCanvas {
     scale() {
         return this.#ratio;
     }
+
+    // #region control
+    size(width, height) {
+        let params = {};
+        ['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'textBaseline', 'textAlign', 'font'].forEach(p => params[p] = this.cx[p]);
+        this.cv.width = width;
+        this.cv.height = height;
+        for (let p in params) this.cx[p] = params[p];
+    }
     clear() {
         this.cx.clearRect(0, 0, this.cv.width, this.cv.height);
     }
-    noFill() {
-        this.#cfg.fillF = 0;
+    rotate(rad) {
+        this.cx.rotate(rad);
     }
-    noStroke() {
-        this.#cfg.strokeF = 0;
-    }
-    beginShape() {
-        this.#cfg.shapeF = 1;
-        this.cx.beginPath();
+    translate(x, y) {
+        this.cx.translate(...this.#map(x, y));
     }
     push() {
         this.cx.save();
@@ -94,6 +93,26 @@ export default class ProcessingCanvas extends ActionCanvas {
         this.cx.restore();
         if (this.#stack.length) this.#cfg = this.#stack.pop();
     }
+
+    //#region polygon
+    beginShape() {
+        this.#cfg.shapeF = 1;
+        this.cx.beginPath();
+    }
+    endShape(close = false) {
+        if (close) this.cx.closePath();
+        this.#apply();
+    }
+    vertex(x, y) {
+        if (this.#cfg.shapeF) {
+            this.#cfg.shapeF = 0;
+            this.cx.moveTo(...this.#map(x, y));
+        } else {
+            this.cx.lineTo(...this.#map(x, y));
+        }
+    }
+
+    // #region color
     background(color, g, b, a) {
         let t = this.cx.fillStyle;
         this.cx.fillStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
@@ -104,13 +123,24 @@ export default class ProcessingCanvas extends ActionCanvas {
         this.#cfg.fillF = 1;
         this.cx.fillStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
     }
+    noFill() {
+        this.#cfg.fillF = 0;
+    }
     stroke(color, g, b, a) {
         this.#cfg.strokeF = 1;
         this.cx.strokeStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
     }
+    noStroke() {
+        this.#cfg.strokeF = 0;
+    }
+
+    //#region mode
     strokeWeight(px) {
         this.cx.lineWidth = px * this.#ratio;
     }
+    /**
+     * @param {*} join MITER, BEVEL, ROUND
+     */
     strokeJoin(join) {
         this.cx.lineJoin = (() => {
             switch (join) {
@@ -121,6 +151,9 @@ export default class ProcessingCanvas extends ActionCanvas {
             return "miter";
         })();
     }
+    /**
+     * @param {*} cap ROUND, SQUARE, PROJECT
+     */
     strokeCap(cap) {
         this.cx.lineCap = (() => {
             switch (cap) {
@@ -131,23 +164,38 @@ export default class ProcessingCanvas extends ActionCanvas {
             return "round";
         })();
     }
+    /**
+     * @param {*} mode CORNER, CORNERS, RADIUS, CENTER
+     */
     rectMode(mode) {
         this.#cfg.rectMode = mode;
     }
+    /**
+     * @param {*} mode CENTER, RADIUS, CORNER, CORNERS
+     */
     ellipseMode(mode) {
         this.#cfg.elMode = mode;
     }
+    /**
+     * @param {*} mode CORNER, CORNERS, CENTER
+     */
     imageMode(mode) {
         this.#cfg.imgMode = mode;
     }
+
+    //#region text
     textFont(font) {
         this.cx.font = this.cx.font.split('px ')[0] + 'px ' + font;
     }
     textSize(px) {
         this.cx.font = Math.round(px * this.#ratio) + 'px ' + this.cx.font.split('px ')[1];
     }
+    /**
+     * @param {*} hor LEFT, CENTER, RIGHT
+     * @param {*} vert BASELINE, TOP, BOTTOM, CENTER
+     */
     textAlign(hor, vert) {
-        this.cx.textAlign = (() => {
+        if (hor) this.cx.textAlign = (() => {
             switch (hor) {
                 case 'LEFT': return "left";
                 case 'CENTER': return "center";
@@ -156,7 +204,7 @@ export default class ProcessingCanvas extends ActionCanvas {
             return "left";
         })();
 
-        this.cx.textBaseline = (() => {
+        if (vert) this.cx.textBaseline = (() => {
             switch (vert) {
                 case 'BASELINE': return "alphabetic";
                 case 'TOP': return "top";
@@ -166,10 +214,25 @@ export default class ProcessingCanvas extends ActionCanvas {
             return "alphabetic";
         })();
     }
+    textWidth(text) {
+        return this.textBounds(text).width;
+    }
+    textHeight(text) {
+        return this.textBounds(text).height;
+    }
+    textBounds(text) {
+        let m = this.cx.measureText(text);
+        return {
+            width: (m.actualBoundingBoxRight + m.actualBoundingBoxLeft) / this.#ratio,
+            height: (m.actualBoundingBoxDescent + m.actualBoundingBoxAscent) / this.#ratio
+        };
+    }
     text(text, x, y) {
         if (this.#cfg.fillF) this.cx.fillText(text, ...this.#map(x, y));
         if (this.#cfg.strokeF) this.cx.strokeText(text, ...this.#map(x, y));
     }
+
+    //#region primitive
     point(x, y) {
         this.cx.beginPath();
         this.cx.fillRect(...this.#map(x, y), this.#ratio, this.#ratio);
@@ -230,18 +293,7 @@ export default class ProcessingCanvas extends ActionCanvas {
         this.cx.bezierCurveTo(...this.#map(x2, y2), ...this.#map(x3, y3), ...this.#map(x4, y4));
         this.cx.stroke();
     }
-    endShape(close) {
-        if (close) this.cx.closePath();
-        this.#apply();
-    }
-    vertex(x, y) {
-        if (this.#cfg.shapeF) {
-            this.#cfg.shapeF = 0;
-            this.cx.moveTo(...this.#map(x, y));
-        } else {
-            this.cx.lineTo(...this.#map(x, y));
-        }
-    }
+
     triangle(x0, y0, x1, y1, x2, y2) {
         this.polygon(x0, y0, x1, y1, x2, y2);
     }
@@ -264,12 +316,8 @@ export default class ProcessingCanvas extends ActionCanvas {
         }
         this.cx.bezierCurveTo(...this.#map(xa1, ya1), ...this.#map(xa2, ya2), ...this.#map(xe, ye));
     }
-    rotate(rad) {
-        this.cx.rotate(rad);
-    }
-    translate(x, y) {
-        this.cx.translate(...this.#map(x, y));
-    }
+
+    //#region image
     image(img, x, y, w, h) {
         let xy = this.#map(x, y);
 
@@ -291,17 +339,16 @@ export default class ProcessingCanvas extends ActionCanvas {
                 break;
         }
     }
-    async loadImage(path) {
+    async loadImage(url) {
         return new Promise((res) => {
             let img = new Image();
-            img.src = path;
+            img.src = url;
             img.onerror = () => res(null);
             img.onload = () => res(img);
         });
     }
 
-    // PRIVATE
-
+    //#region private
     #cfg = this.#defaults();
     #ratio;
     #map;
