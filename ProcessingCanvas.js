@@ -76,8 +76,9 @@ export default class ProcessingCanvas extends ActionCanvas {
         this.cv.height = height;
         for (let p in params) this.cx[p] = params[p];
     }
-    clear() {
-        this.cx.clearRect(0, 0, this.cv.width, this.cv.height);
+    clear(x, y, w, h) {
+        if (isNaN(x)) this.cx.clearRect(0, 0, this.cv.width, this.cv.height);
+        else this.cx.clearRect(...this.#map(x, y), w * this.#ratio, h * this.#ratio);
     }
     rotate(rad) {
         this.cx.rotate(rad);
