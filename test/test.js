@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let w = 400, h = 500;
     cv.size(w, h);
+    cv.size(w, h);
+    cv.cv.style.width = w + 'px';
+    cv.cv.style.height = h + 'px';
 
     cv.background(200, 200, 200);
     cv.stroke(0);
