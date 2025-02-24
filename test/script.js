@@ -1,4 +1,4 @@
-import ProcessingCanvas from './ProcessingCanvas';
+import ProcessingCanvas from 'https://gyverlibs.github.io/ProcessingCanvas.js/ProcessingCanvas.min.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     let cv = new ProcessingCanvas(document.createElement('canvas'));

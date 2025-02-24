@@ -1,36 +1,13 @@
-import ActionCanvas from "@alexgyver/action-canvas";
+import { makeWebColor } from "@alexgyver/utils";
 
-export default class ProcessingCanvas extends ActionCanvas {
-    //#region static
-    static radians(deg) {
-        return deg * 0.0174532925;
-    }
-    static degrees(rad) {
-        return rad * 57.2957795130;
-    }
-    static makeWebColor(col, g, b, a) {
-        if (!isNaN(g) && !isNaN(b)) return isNaN(a) ? `rgb(${col},${g},${b})` : `rgba(${col},${g},${b},${Number.isInteger(a) ? a / 255.0 : a})`;
-
-        if (typeof col === 'number') {
-            return "#" + col.toString(16).padStart(6, '0');
-        } else if (typeof col === 'string') {
-            if (col.startsWith('#')) {
-                switch (col.length) {
-                    case 4: case 5: return '#' + col[1] + col[1] + col[2] + col[2] + col[3] + col[3] + (col.length == 5 ? (col[4] + col[4]) : '');
-                    case 7: case 9: return col;
-                    default: return '#000';
-                }
-            } else if (parseInt(col)) {
-                return ProcessingCanvas.makeWebColor(parseInt(col));
-            } else {
-                return col;
-            }
-        }
-    }
-
+export default class ProcessingCanvas {
     //#region public
     constructor(canvas, ratio = window.devicePixelRatio, mapxy = null) {
-        super(canvas);
+        /** @type {Canvas} */
+        this.cv = canvas;
+
+        /** @type {CanvasRenderingContext2D} */
+        this.cx = canvas.getContext("2d");
 
         this.#ratio = ratio;
         this.#map = mapxy ? mapxy : (x, y) => {
@@ -130,20 +107,20 @@ export default class ProcessingCanvas extends ActionCanvas {
     // #region color
     background(color, g, b, a) {
         let t = this.cx.fillStyle;
-        this.cx.fillStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
+        this.cx.fillStyle = makeWebColor(color, g, b, a);
         this.cx.fillRect(this.#cfg.x0, this.#cfg.y0, ...this.#wh());
         this.cx.fillStyle = t;
     }
     fill(color, g, b, a) {
         this.#cfg.fillF = 1;
-        this.cx.fillStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
+        this.cx.fillStyle = makeWebColor(color, g, b, a);
     }
     noFill() {
         this.#cfg.fillF = 0;
     }
     stroke(color, g, b, a) {
         this.#cfg.strokeF = 1;
-        this.cx.strokeStyle = ProcessingCanvas.makeWebColor(color, g, b, a);
+        this.cx.strokeStyle = makeWebColor(color, g, b, a);
     }
     noStroke() {
         this.#cfg.strokeF = 0;
