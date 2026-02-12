@@ -46,14 +46,16 @@ export default class ProcessingCanvas {
     }
 
     // #region control
-    size(width, height) {
+    size(width, height, changeStyle = true) {
         let params = {};
         ['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'textBaseline', 'textAlign', 'font'].forEach(p => params[p] = this.cx[p]);
         this.cv.width = width * this.#ratio;
         this.cv.height = height * this.#ratio;
         for (let p in params) this.cx[p] = params[p];
-        this.cv.style.width = width + 'px';
-        this.cv.style.height = height + 'px';
+        if (changeStyle) {
+            this.cv.style.width = width + 'px';
+            this.cv.style.height = height + 'px';
+        }
     }
     clip(x, y, w, h) {
         this.#cfg.x0 = x * this.#ratio;
@@ -79,7 +81,7 @@ export default class ProcessingCanvas {
     }
     push() {
         this.cx.save();
-        this.#stack.push(this.#cfg);
+        this.#stack.push({ ...this.#cfg });
     }
     pop() {
         this.cx.restore();
@@ -134,27 +136,23 @@ export default class ProcessingCanvas {
      * @param {*} join MITER, BEVEL, ROUND
      */
     strokeJoin(join) {
-        this.cx.lineJoin = (() => {
-            switch (join) {
-                case 'MITER': return "miter";
-                case 'BEVEL': return "bevel";
-                case 'ROUND': return "round";
-            }
-            return "miter";
-        })();
+        const JOIN = {
+            MITER: 'miter',
+            BEVEL: 'bevel',
+            ROUND: 'round'
+        };
+        this.cx.lineJoin = JOIN[join] ?? 'miter';
     }
     /**
      * @param {*} cap ROUND, SQUARE, PROJECT
      */
     strokeCap(cap) {
-        this.cx.lineCap = (() => {
-            switch (cap) {
-                case 'ROUND': return "round";
-                case 'SQUARE': return "butt";
-                case 'PROJECT': return "square";
-            }
-            return "round";
-        })();
+        const CAP = {
+            ROUND: 'round',
+            SQUARE: 'butt',
+            PROJECT: 'square'
+        };
+        this.cx.lineCap = CAP[cap] ?? 'round';
     }
     /**
      * @param {*} mode CORNER, CORNERS, RADIUS, CENTER
@@ -187,24 +185,20 @@ export default class ProcessingCanvas {
      * @param {*} vert BASELINE, TOP, BOTTOM, CENTER
      */
     textAlign(hor, vert) {
-        if (hor) this.cx.textAlign = (() => {
-            switch (hor) {
-                case 'LEFT': return "left";
-                case 'CENTER': return "center";
-                case 'RIGHT': return "right";
-            }
-            return "left";
-        })();
+        const ALIGN = {
+            LEFT: "left",
+            CENTER: "center",
+            RIGHT: "right",
+        };
+        if (hor) this.cx.textAlign = ALIGN[hor] ?? "left";
 
-        if (vert) this.cx.textBaseline = (() => {
-            switch (vert) {
-                case 'BASELINE': return "alphabetic";
-                case 'TOP': return "top";
-                case 'BOTTOM': return "bottom";
-                case 'CENTER': return "middle";
-            }
-            return "alphabetic";
-        })();
+        const BASE = {
+            BASELINE: "alphabetic",
+            TOP: "top",
+            BOTTOM: "bottom",
+            CENTER: "middle",
+        };
+        if (vert) this.cx.textBaseline = BASE[vert] ?? "alphabetic";
     }
     textWidth(text) {
         return this.textBounds(text).width;
